@@ -9,7 +9,7 @@ Você deve entregar um software capaz de:
 
 ## Exemplo no CLI
 
-Faça sua pergunta:
+Faça sua pergunta (digite 'sair' para encerrar):
 
 ```
 PERGUNTA: Qual o faturamento da Empresa SuperTechIABrazil?
@@ -61,9 +61,10 @@ Atenção: modelos de embedding diferentes geram vetores com dimensões diferent
 
 ### 1. Ingestão do PDF
 
-- O PDF deve ser dividido em chunks de 1000 caracteres com overlap de 150.
-- Cada chunk deve ser convertido em embedding.
-- Os vetores devem ser armazenados no banco de dados PostgreSQL com pgVector.
+- O PDF é dividido em chunks de 1000 caracteres com overlap de 150.
+- Cada chunk é convertido em embedding.
+- Os vetores são armazenados no PostgreSQL com pgVector.
+- Uma nova execução não reenvia o PDF quando ele já está na collection.
 
 ### 2. Consulta via CLI
 
@@ -112,7 +113,8 @@ Faça um fork do repositório para utilizar a estrutura abaixo: https://github.c
 ```
 ├── docker-compose.yml
 ├── requirements.txt      # Dependências
-├── .env.example          # Template das variáveis de ambiente
+├── .env                  # Variáveis lidas pela ingestão e pelo chat
+├── .env.example          # Exemplo inicial; os nomes usados estão na seção abaixo
 ├── src/
 │   ├── ingest.py         # Script de ingestão do PDF
 │   ├── search.py         # Script de busca
@@ -121,13 +123,30 @@ Faça um fork do repositório para utilizar a estrutura abaixo: https://github.c
 └── README.md             # Instruções de execução
 ```
 
+## Variáveis de ambiente
+
+Crie um arquivo `.env` na raiz do projeto. A ingestão e o chat leem estes nomes:
+
+```
+OPENAI_API_KEY=
+OPENAI_MODEL=text-embedding-3-small
+OPENAI_CHAT_MODEL=gpt-5-nano
+PGVECTOR_URL=postgresql+psycopg://postgres:postgres@localhost:5432/rag
+PGVECTOR_COLLECTION=gpt5_collection
+```
+
+- `OPENAI_MODEL`: modelo de embeddings da ingestão e da busca.
+- `OPENAI_CHAT_MODEL`: modelo que responde no chat. O padrão é `gpt-5-nano`.
+- `PGVECTOR_URL` e `PGVECTOR_COLLECTION`: conexão e collection do Postgres. Os valores acima são os mesmos do `docker-compose.yml`.
+
 ## VirtualEnv para Python
 
-Crie e ative um ambiente virtual antes de instalar dependências:
+Crie o ambiente virtual, ative-o e instale as dependências:
 
 ```
 python3 -m venv venv
 source venv/bin/activate
+pip install -r requirements.txt
 ```
 
 ## Ordem de execução
@@ -138,17 +157,21 @@ source venv/bin/activate
 docker compose up -d
 ```
 
-2. Executar ingestão do PDF:
+2. Executar a ingestão do PDF (`document.pdf`):
 
 ```
 python src/ingest.py
 ```
 
-3. Rodar o chat:
+Se esse PDF já estiver na collection, o script identifica os chunks pelo caminho do arquivo e encerra sem enviar de novo.
+
+3. Rodar o chat, com o ambiente virtual ativo:
 
 ```
 python src/chat.py
 ```
+
+O terminal fica em loop. Cada pergunta é vetorizada, os 10 trechos mais próximos são buscados no pgVector e a resposta sai só desse contexto. Digite `sair`, `exit` ou `quit` para encerrar.
 
 ## Entregável
 
